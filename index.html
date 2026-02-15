@@ -1,36 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Yuvraj Morse System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuvraj Morse System</title>
+
 <style>
 body{
-  background:#000;
+  background:black;
   color:#00ff00;
   font-family:monospace;
-  padding:12px;
+  padding:15px;
 }
 #terminal{
   white-space:pre-wrap;
-  margin-bottom:10px;
-  line-height:1.4;
+  margin-bottom:12px;
 }
 input{
-  background:#000;
+  background:black;
   color:#00ff00;
   border:none;
   outline:none;
-  font-family:monospace;
-  width:100%;
   font-size:16px;
-  padding:8px 0;
+  width:100%;
+  padding:10px 0;
 }
+.block{
+  margin:18px 0;
+  padding:8px;
+  border-left:3px solid #00ff00;
+}
+.small{opacity:.7}
 </style>
 </head>
 <body>
 
 <div id="terminal"></div>
-<input id="input" autofocus placeholder="Type here...">
+<input id="input" placeholder="Type here...">
 
 <script>
 const morse={
@@ -45,151 +50,129 @@ Z:'--..',
 8:'---..',9:'----.',
 ' ':'/'
 };
-const reverseDict = Object.fromEntries(Object.entries(morse).map(([k,v])=>[v,k]));
 
-let history=[];
+const reverseDict=Object.fromEntries(Object.entries(morse).map(([k,v])=>[v,k]));
+
 let count=0;
-let logged=false;
-let currentColor="#00ff00";
+let history=[];
+let loginStage=0;
+let attempts=0;
+let user="";
 
 const term=document.getElementById("terminal");
 const input=document.getElementById("input");
 
-function print(t){
-  term.innerHTML+=t+"<br>";
-  window.scrollTo(0,document.body.scrollHeight);
+function print(t){ term.innerHTML+=t+"<br>"; }
+
+function boot(){
+print("Booting Secure Morse System...");
+setTimeout(()=>print("Loading modules..."),400);
+setTimeout(()=>print("System ready"),900);
+setTimeout(()=>{
+print("<br>Username:");
+loginStage=1;
+},1300);
 }
 
-function setColor(name){
-  const map={
-    green:"#00ff00",
-    red:"#ff4d4d",
-    blue:"#4da6ff",
-    yellow:"#ffff66",
-    white:"#ffffff",
-    aqua:"#66ffff",
-    purple:"#cc66ff"
-  };
-  if(map[name]){
-    currentColor=map[name];
-    document.body.style.color=currentColor;
-    input.style.color=currentColor;
-    print("Color changed to "+name);
-  }else{
-    print("Available: green, red, blue, yellow, white, aqua, purple");
-  }
+boot();
+
+input.addEventListener("input",function(){
+if(loginStage!==3) return;
+
+let val=input.value.trim();
+if(!val) return;
+
+let isMorse=/^[.\-\/\s]+$/.test(val);
+let preview="";
+
+if(isMorse){
+let parts=val.split(" ");
+parts.forEach(p=>preview+=reverseDict[p]||'?');
+}else{
+for(let i=0;i<val.length;i++){
+preview+=(morse[val[i].toUpperCase()]||'?')+" ";
+}
 }
 
-function beepSequence(code){
-  let i=0;
-  function beep(){
-    if(i>=code.length) return;
-    const c=code[i++];
-    if(c==='.' || c==='-'){
-      try{
-        const ctx=new (window.AudioContext||window.webkitAudioContext)();
-        const osc=ctx.createOscillator();
-        osc.connect(ctx.destination);
-        osc.start();
-        setTimeout(()=>{osc.stop();ctx.close();}, c==='.'?100:250);
-      }catch(e){}
-      setTimeout(beep, c==='.'?140:300);
-    }else{
-      setTimeout(beep,120);
-    }
-  }
-  beep();
-}
-
-function loading(){
-  let i=0;
-  let bar=setInterval(()=>{
-    term.innerHTML="Loading: "+i+"%";
-    i++;
-    if(i>100){
-      clearInterval(bar);
-      term.innerHTML="";
-      startSystem();
-    }
-  },20);
-}
-
-function startSystem(){
-  print("=== Yuvraj Morse System ===");
-  print("Type text to convert");
-  print("Commands:");
-  print("history | reset | stats | reverse ....");
-  print("color green/red/blue/yellow/white/aqua/purple");
-  print("clear");
-}
-
-print("Welcome to Yuvraj Secure Morse System");
-print("Enter password:");
+document.getElementById("preview")?.remove();
+let d=document.createElement("div");
+d.id="preview";
+d.className="small";
+d.innerText=preview;
+term.appendChild(d);
+});
 
 input.addEventListener("keydown",function(e){
-if(e.key==="Enter"){
+if(e.key!=="Enter") return;
+
 let val=input.value.trim();
 input.value="";
 
-if(!logged){
-  if(val==="yuvraj"){
-    logged=true;
-    print("Access Granted");
-    loading();
-  }else{
-    print("Wrong password");
-  }
-  return;
+if(loginStage===1){
+user=val;
+print(val);
+print("Password:");
+loginStage=2;
+return;
 }
 
-if(val==="history"){
-  history.forEach(h=>print(h));
-  return;
+if(loginStage===2){
+print("Checking credentials...");
+setTimeout(()=>{
+if(user==="yuvraj" && val==="123"){
+print("Access Granted<br>");
+loginStage=3;
+}else{
+attempts++;
+print("Access Denied");
+if(attempts>=3){
+print("System Locked");
+input.disabled=true;
+}else{
+print("Username:");
+loginStage=1;
+}
+}
+},700);
+return;
 }
 
-if(val==="reset"){
-  history=[];
-  count=0;
-  print("Reset done");
-  return;
-}
+if(loginStage!==3) return;
 
-if(val==="stats"){
-  print("Total conversions: "+count);
-  return;
+/* Commands */
+if(val==="help"){
+print("Commands: history, stats, reset, clear, time, date");
+return;
 }
+if(val==="clear"){ term.innerHTML=""; return; }
+if(val==="reset"){ history=[]; count=0; print("Reset done"); return; }
+if(val==="stats"){ print("Total: "+count); return; }
+if(val==="time"){ print(new Date().toLocaleTimeString()); return; }
+if(val==="date"){ print(new Date().toDateString()); return; }
+if(val==="history"){ history.forEach(h=>print(h)); return; }
 
-if(val==="clear"){
-  term.innerHTML="";
-  return;
-}
-
-if(val.startsWith("color ")){
-  setColor(val.split(" ")[1].toLowerCase());
-  return;
-}
-
-if(val.startsWith("reverse ")){
-  let code=val.replace("reverse ","").trim().split(" ");
-  let out="";
-  code.forEach(c=> out+=reverseDict[c]||'?');
-  print(out);
-  return;
-}
-
+/* Conversion */
 count++;
+let isMorse=/^[.\-\/\s]+$/.test(val);
+let block="<div class='block'><b>"+count+". "+val+"</b><br>";
+
+if(isMorse){
+let parts=val.split(" ");
+let out="";
+parts.forEach(p=>out+=reverseDict[p]||'?');
+block+="<span class='small'>"+out+"</span>";
+}else{
 let res="";
 for(let i=0;i<val.length;i++){
-  res+=(morse[val[i].toUpperCase()]||'?')+" ";
+res+=(morse[val[i].toUpperCase()]||'?')+" ";
 }
-let line=count+". "+res;
-history.push(line);
-print(line);
-print("Sent by Yuvraj Converter");
-beepSequence(res);
+block+="<span class='small'>"+res+"</span>";
 }
+
+block+="</div>";
+history.push(block);
+print(block);
 });
 </script>
-
 </body>
 </html>
